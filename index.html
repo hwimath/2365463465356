@@ -2,11 +2,11 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>음수의 제곱근</title>
+  <title>음수의 제곱근 게임</title>
   <!-- MathJax for LaTeX rendering -->
   <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" defer></script>
   <style>
-    /* 흑백 테마를 적용합니다 */
+    /* 흑백 테마 적용 */
     body {
       background-color: #ffffff;
       color: #000000;
@@ -51,767 +51,615 @@
       margin-top: 15px;
       white-space: pre;
     }
+    /* 다음문제 버튼 */
+    #next-button {
+      margin-top: 10px;
+    }
   </style>
 </head>
 <body>
-<h1>음수의 제곱근</h1>
-
-<!-- 0. 첫 화면: 사용자 이름, 난이도 선택 -->
-<div id="setup-screen">
-  <div>플레이어 이름을 입력하세요:</div>
-  <input type="text" id="playerName" placeholder="이름" />
-  <div class="difficulty-select">
-    <p>난이도를 선택하세요:</p>
-    <label><input type="radio" name="difficulty" value="top" /> 최상 (20초/문항, 20점/정답)</label><br/>
-    <label><input type="radio" name="difficulty" value="high" /> 상 (30초/문항, 15점/정답)</label><br/>
-    <label><input type="radio" name="difficulty" value="mid" /> 중 (40초/문항, 13점/정답)</label><br/>
-    <label><input type="radio" name="difficulty" value="low" /> 하 (시간제한 없음, 10점/정답)</label>
-  </div>
-  <button onclick="startGame()">게임 시작</button>
-</div>
-
-<!-- 게임 진행 영역 -->
-<div id="game-area" class="hidden">
-  <div class="status">
-    <div>전체 플레이 시간: <span id="total-time">0</span>초</div>
-    <div>남은 기회: <span id="chances">3</span></div>
-    <div>점수: <span id="score">0</span></div>
-  </div>
-  <div class="energy-bar" id="energy-bar">
-    <div class="energy-fill" id="energy-fill"></div>
-  </div>
-  <div id="question-container"></div>
-</div>
-
-<!-- 종료 화면 -->
-<div id="end-screen" class="hidden">
-  <h2>게임 종료</h2>
-  <p>최종 점수: <span id="final-score">0</span></p>
-  <button class="score-button" onclick="sendScore()">점수전송</button>
-  <div id="response"></div>
-</div>
-
-<script>
-/*
-  문제 배열 (무작위로 섞어서 낼 예정).
-  문제마다:
-    question: "문제 statement (조건 포함)",
-    choices: ["보기1","보기2","보기3","보기4"],
-    correctIndex: 정답 인덱스(0~3),
-    explanation: "간단해설 및 정답 표기"
-*/
-const problems = [
-
-  // ----- 기존 44~74, 그리고 78~85 문제들을
-  // "문제/조건", "보기", "정답/간단해설" 형태로 모아 둡니다. -----
-  // (번호는 표시하지 말라고 하셨으니, 여기서는 일체 표시하지 않고 저장만 합니다.)
-
-  {
-    question: "다음 식 \\(\\sqrt{-2}\\,\\sqrt{-8}\\) 을 \\(a+bi\\,(a,b\\in \\mathbb{R}, i=\\sqrt{-1})\\) 꼴로 나타내시오.<br/>\\(\\sqrt{-2}=\\sqrt{2}i,\\; \\sqrt{-8}=2\\sqrt{2}i\\) 이고, \\(i^2=-1\\)임에 주의.",
-    choices: [
-      "\\(-4\\)",
-      "\\(4\\)",
-      "\\(-4i\\)",
-      "\\(4i\\)"
-    ],
-    correctIndex: 0,
-    explanation: "계산하면 \\(\\sqrt{2}i \\times 2\\sqrt{2}i = 2\\times2\\, i^2 = -4\\). 정답은 \\(-4\\)."
-  },
-  {
-    question: "다음 식 \\(\\sqrt{3}\\,\\sqrt{-27}\\) 을 \\(a+bi\\) 꼴로 나타내시오.",
-    choices: [
-      "\\(9\\)",
-      "\\(-9\\)",
-      "\\(9i\\)",
-      "\\(-9i\\)"
-    ],
-    correctIndex: 2,
-    explanation: "\\(\\sqrt{-27} = 3\\sqrt{3} i\\). 따라서 \\(\\sqrt{3}\\times 3\\sqrt{3}i=9i\\)."
-  },
-  {
-    question: "다음 식 \\(\\sqrt{-2}\\,\\sqrt{8}\\) 을 \\(a+bi\\) 꼴로 나타내시오.",
-    choices: [
-      "\\(4i\\)",
-      "\\(-4\\)",
-      "\\(2i\\)",
-      "\\(-4i\\)"
-    ],
-    correctIndex: 0,
-    explanation: "\\(\\sqrt{-2}=\\sqrt{2}i,\\;\\sqrt{8}=2\\sqrt{2}\\). 곱하면 \\(4i\\)."
-  },
-  {
-    question: "다음 식 \\(\\sqrt{-2}\\,\\sqrt{-3}\\) 을 \\(a+bi\\) 꼴로 나타내시오.",
-    choices: [
-      "\\(\\sqrt{6}\\)",
-      "\\(-\\sqrt{6}\\)",
-      "\\(\\sqrt{6}i\\)",
-      "\\(-\\sqrt{6}i\\)"
-    ],
-    correctIndex: 1,
-    explanation: "계산: \\(\\sqrt{2}i\\times\\sqrt{3}i=\\sqrt{6}i^2=-\\sqrt{6}\\)."
-  },
-  {
-    question: "다음 식 \\(\\sqrt{-2}\\,\\sqrt{3}\\) 을 \\(a+bi\\) 꼴로 나타내시오.",
-    choices: [
-      "\\(\\sqrt{6}\\)",
-      "\\(-\\sqrt{6}i\\)",
-      "\\(\\sqrt{6}i\\)",
-      "\\(-\\sqrt{6}\\)"
-    ],
-    correctIndex: 2,
-    explanation: "\\(\\sqrt{-2}=\\sqrt{2}i\\). \\(\\sqrt{2}i\\times\\sqrt{3} = \\sqrt{6}i\\)."
-  },
-  {
-    question: "다음 식 \\(\\sqrt{-4}\\,\\sqrt{-6}\\) 을 \\(a+bi\\) 꼴로 나타내시오.",
-    choices: [
-      "\\(2\\sqrt{6}i\\)",
-      "\\(-2\\sqrt{6}i\\)",
-      "\\(2\\sqrt{6}\\)",
-      "\\(-2\\sqrt{6}\\)"
-    ],
-    correctIndex: 3,
-    explanation: "\\(\\sqrt{-4}=2i,\\; \\sqrt{-6}=\\sqrt{6}i\\). 곱하면 \\(2i\\times\\sqrt{6}i=2\\sqrt{6}i^2=-2\\sqrt{6}\\)."
-  },
-  {
-    question: "다음 식 \\(\\sqrt{-5}\\,\\sqrt{-3}\\) 을 \\(a+bi\\) 꼴로 나타내시오.",
-    choices: [
-      "\\(\\sqrt{15}\\)",
-      "\\(-\\sqrt{15}\\)",
-      "\\(\\sqrt{15}i\\)",
-      "\\(-\\sqrt{15}i\\)"
-    ],
-    correctIndex: 1,
-    explanation: "\\(\\sqrt{-5}=\\sqrt{5}i,\\;\\sqrt{-3}=\\sqrt{3}i\\). 곱하면 \\(-\\sqrt{15}\\)."
-  },
-  {
-    question: "다음 식 \\(\\sqrt{-8}\\,\\sqrt{-9}\\) 을 \\(a+bi\\) 꼴로 나타내시오.",
-    choices: [
-      "\\(-6\\sqrt{2}\\)",
-      "\\(6\\sqrt{2}\\)",
-      "\\(-6\\sqrt{2}i\\)",
-      "\\(6\\sqrt{2}i\\)"
-    ],
-    correctIndex: 0,
-    explanation: "\\(\\sqrt{-8}=2\\sqrt{2}i,\\;\\sqrt{-9}=3i\\). \\(2\\sqrt{2}i\\times3i=6\\sqrt{2}i^2=-6\\sqrt{2}\\)."
-  },
-  {
-    question: "\\(\\dfrac{\\sqrt{16}}{\\sqrt{-4}}\\) 을 \\(a+bi\\) 꼴로 나타내시오.",
-    choices: [
-      "\\(2\\)",
-      "\\(-2\\)",
-      "\\(2i\\)",
-      "\\(-2i\\)"
-    ],
-    correctIndex: 3,
-    explanation: "\\(\\sqrt{16}=4,\\;\\sqrt{-4}=2i.\\) 분수 \\(\\dfrac{4}{2i}=-2i\\)."
-  },
-  {
-    question: "\\(\\dfrac{\\sqrt{-30}}{\\sqrt{-6}}\\) 을 \\(a+bi\\) 꼴로 나타내시오.",
-    choices: [
-      "\\(\\sqrt{5}\\)",
-      "\\(-\\sqrt{5}\\)",
-      "\\(\\sqrt{5}i\\)",
-      "\\(-\\sqrt{5}i\\)"
-    ],
-    correctIndex: 0,
-    explanation: "\\(\\sqrt{-30}=\\sqrt{30}i,\\;\\sqrt{-6}=\\sqrt{6}i.\\) 분수는 \\(\\sqrt{5}\\)."
-  },
-  {
-    question: "\\(\\dfrac{\\sqrt{-6}}{\\sqrt{2}}\\) 을 \\(a+bi\\) 꼴로 나타내시오.",
-    choices: [
-      "\\(\\sqrt{3}\\)",
-      "\\(-\\sqrt{3}\\)",
-      "\\(\\sqrt{3}i\\)",
-      "\\(-\\sqrt{3}i\\)"
-    ],
-    correctIndex: 2,
-    explanation: "\\(\\sqrt{-6}=\\sqrt{6}i\\). 분모 \\(\\sqrt{2}\\). 결과 \\(\\sqrt{3}i\\)."
-  },
-  {
-    question: "\\(\\dfrac{\\sqrt{-5}}{\\sqrt{-4}}\\) 을 \\(a+bi\\) 꼴로 나타내시오.",
-    choices: [
-      "\\(\\dfrac{\\sqrt{5}}{2}i\\)",
-      "\\(-\\dfrac{\\sqrt{5}}{2}i\\)",
-      "\\(\\dfrac{\\sqrt{5}}{4}\\)",
-      "\\(-\\dfrac{\\sqrt{5}}{4}\\)"
-    ],
-    correctIndex: 1,
-    explanation: "첨부 풀이에 따르면 결과는 \\(-\\frac{\\sqrt{5}}{2}i\\)."
-  },
-  {
-    question: "\\(\\dfrac{\\sqrt{-12}}{\\sqrt{-3}}\\) 을 \\(a+bi\\) 꼴로 나타내시오.",
-    choices: [
-      "2",
-      "-2",
-      "2i",
-      "-2i"
-    ],
-    correctIndex: 0,
-    explanation: "\\(\\sqrt{-12}=2\\sqrt{3}i,\\;\\sqrt{-3}=\\sqrt{3}i\\). 결과는 2."
-  },
-  {
-    question: "\\(\\dfrac{\\sqrt{8}}{\\sqrt{-2}}\\) 을 \\(a+bi\\) 꼴로 나타내시오.",
-    choices: [
-      "2i",
-      "-2i",
-      "2",
-      "-2"
-    ],
-    correctIndex: 1,
-    explanation: "\\(\\sqrt{8}=2\\sqrt{2},\\;\\sqrt{-2}=\\sqrt{2}i\\). \\(\\dfrac{2\\sqrt{2}}{\\sqrt{2}i}=\\dfrac{2}{i}=-2i\\)."
-  },
-  {
-    question: "\\(\\dfrac{\\sqrt{-10}}{\\sqrt{2}}\\) 을 \\(a+bi\\) 꼴로 나타내시오.",
-    choices: [
-      "\\(\\sqrt{5}i\\)",
-      "\\(-\\sqrt{5}i\\)",
-      "\\(\\sqrt{10}i\\)",
-      "\\(-\\sqrt{10}i\\)"
-    ],
-    correctIndex: 0,
-    explanation: "\\(\\sqrt{-10}=\\sqrt{10}i\\). 분모 \\(\\sqrt{2}\\). 결과 \\(\\sqrt{5}i\\)."
-  },
-  {
-    question: "\\(\\dfrac{\\sqrt{18}}{\\sqrt{-3}}\\) 을 \\(a+bi\\) 꼴로 나타내시오.",
-    choices: [
-      "\\(\\sqrt{6}i\\)",
-      "\\(-\\sqrt{6}i\\)",
-      "\\(\\sqrt{6}\\)",
-      "\\(-\\sqrt{6}\\)"
-    ],
-    correctIndex: 1,
-    explanation: "\\(\\sqrt{18}=3\\sqrt{2},\\;\\sqrt{-3}=\\sqrt{3}i.\\) 결과 \\(-\\sqrt{6}i\\)."
-  },
-  {
-    question: "\\(\\dfrac{\\sqrt{-8}}{\\sqrt{-2}}\\) 을 \\(a+bi\\) 꼴로 나타내시오.",
-    choices: [
-      "2",
-      "-2",
-      "2i",
-      "-2i"
-    ],
-    correctIndex: 0,
-    explanation: "\\(\\sqrt{-8}=2\\sqrt{2}i,\\;\\sqrt{-2}=\\sqrt{2}i.\\) 결과는 2."
-  },
-  {
-    question: "\\(\\dfrac{1 - \\sqrt{-12}}{2 + \\sqrt{-3}}\\) 를 \\(a+bi\\) 꼴로 나타내시오.",
-    choices: [
-      "\\(-\\dfrac{4}{7}-\\dfrac{5\\sqrt{3}}{7}i\\)",
-      "\\(\\dfrac{4}{7}-\\dfrac{5\\sqrt{3}}{7}i\\)",
-      "\\(-\\dfrac{4}{7}+\\dfrac{5\\sqrt{3}}{7}i\\)",
-      "\\(\\dfrac{4}{7}+\\dfrac{5\\sqrt{3}}{7}i\\)"
-    ],
-    correctIndex: 0,
-    explanation: "유리화 후 계산 결과 \\(-\\frac{4}{7}-\\frac{5\\sqrt{3}}{7}i\\)."
-  },
-  {
-    question: "\\(\\dfrac{1 - \\sqrt{-8}}{2 + \\sqrt{-2}}\\) 를 \\(a+bi\\) 꼴로 나타내시오.",
-    choices: [
-      "\\(-\\dfrac{1}{3}-\\dfrac{5\\sqrt{2}}{6}i\\)",
-      "\\(\\dfrac{1}{3}-\\dfrac{5\\sqrt{2}}{6}i\\)",
-      "\\(-\\dfrac{1}{3}+\\dfrac{5\\sqrt{2}}{6}i\\)",
-      "\\(\\dfrac{1}{3}+\\dfrac{5\\sqrt{2}}{6}i\\)"
-    ],
-    correctIndex: 0,
-    explanation: "계산 결과 \\(-\\frac{1}{3}-\\frac{5\\sqrt{2}}{6}i\\)."
-  },
-  {
-    question: "\\(\\dfrac{2 - 2\\sqrt{-1}}{1 + \\sqrt{-1}}\\) 을 \\(a+bi\\) 꼴로 나타내시오.",
-    choices: [
-      "\\(-2\\)",
-      "\\(2\\)",
-      "\\(-2i\\)",
-      "\\(2i\\)"
-    ],
-    correctIndex: 2,
-    explanation: "\\(\\sqrt{-1}=i.\\) \\(2-2i,\\; 1+i\\). 유리화하면 \\(-2i\\)."
-  },
-  {
-    question: "\\(2\\sqrt{-8} - \\sqrt{-18} + 2\\sqrt{-50}\\) 를 \\(a+bi\\) 꼴로 나타내시오.",
-    choices: [
-      "\\(11\\sqrt{2}i\\)",
-      "\\(-11\\sqrt{2}i\\)",
-      "\\(11\\sqrt{3}i\\)",
-      "\\(-11\\sqrt{3}i\\)"
-    ],
-    correctIndex: 0,
-    explanation: "\\(\\sqrt{-8}=2\\sqrt{2}i,\\;\\sqrt{-18}=3\\sqrt{2}i,\\;\\sqrt{-50}=5\\sqrt{2}i.\\) 결과 \\(11\\sqrt{2}i\\)."
-  },
-  {
-    question: "\\(\\sqrt{-12}-\\sqrt{-8}-\\sqrt{-2}+\\dfrac{\\sqrt{15}}{\\sqrt{-5}}\\) 을 \\(a+bi\\) 꼴로 나타내시오.",
-    choices: [
-      "\\(\\sqrt{3}i - 3\\sqrt{2}i\\)",
-      "\\(\\sqrt{3}i + 3\\sqrt{2}i\\)",
-      "\\(-\\sqrt{3}i - 3\\sqrt{2}i\\)",
-      "\\(-\\sqrt{3}i + 3\\sqrt{2}i\\)"
-    ],
-    correctIndex: 0,
-    explanation: "마지막 항은 \\(\\sqrt{15}/\\sqrt{-5}=\\sqrt{3}/i=-\\sqrt{3}i\\). 모두 합하면 \\(\\sqrt{3}i-3\\sqrt{2}i\\)."
-  },
-  {
-    question: "\\(\\dfrac{1 - \\sqrt{-2}}{2 + \\sqrt{-2}} + \\dfrac{3 + \\sqrt{-2}}{2 - \\sqrt{-2}}\\) 를 \\(a+bi\\) 꼴로 나타내시오.",
-    choices: [
-      "\\(\\dfrac{2}{3}+\\dfrac{\\sqrt{2}}{3}i\\)",
-      "\\(\\dfrac{2}{3}-\\dfrac{\\sqrt{2}}{3}i\\)",
-      "\\(-\\dfrac{2}{3}+\\dfrac{\\sqrt{2}}{3}i\\)",
-      "\\(-\\dfrac{2}{3}-\\dfrac{\\sqrt{2}}{3}i\\)"
-    ],
-    correctIndex: 0,
-    explanation: "유리화 후 합산하면 \\(\\tfrac{2}{3}+\\tfrac{\\sqrt{2}}{3}i\\)."
-  },
-  {
-    question: "\\(3\\sqrt{-12}-\\sqrt{-48}-6\\sqrt{-3}\\) 을 \\(a+bi\\) 꼴로 나타내시오.",
-    choices: [
-      "\\(-4\\sqrt{3}i\\)",
-      "\\(4\\sqrt{3}i\\)",
-      "\\(-10\\sqrt{3}i\\)",
-      "\\(10\\sqrt{3}i\\)"
-    ],
-    correctIndex: 0,
-    explanation: "계산 결과 \\(-4\\sqrt{3}i\\)."
-  },
-  {
-    question: "\\(\\sqrt{-2} - \\sqrt{-8} - \\sqrt{-3}\\sqrt{6} - \\dfrac{\\sqrt{16}}{\\sqrt{-2}}\\) 을 \\(a+bi\\) 꼴로 나타내시오.",
-    choices: [
-      "\\(-2\\sqrt{2}i\\)",
-      "\\(2\\sqrt{2}i\\)",
-      "\\(-4\\sqrt{2}i\\)",
-      "\\(4\\sqrt{2}i\\)"
-    ],
-    correctIndex: 0,
-    explanation: "최종적으로 \\(-2\\sqrt{2}i\\)가 됨."
-  },
-  {
-    question: "\\(\\sqrt{4}\\sqrt{-9} + \\sqrt{-4}\\sqrt{-9} + \\dfrac{\\sqrt{9}}{\\sqrt{-4}} + \\dfrac{\\sqrt{-9}}{\\sqrt{-4}}\\) 을 \\(a+bi\\) 꼴로 나타내시오.",
-    choices: [
-      "\\(-\\dfrac{9}{2}+\\dfrac{9}{2}i\\)",
-      "\\(\\dfrac{9}{2}-\\dfrac{9}{2}i\\)",
-      "\\(-\\dfrac{9}{2}-\\dfrac{9}{2}i\\)",
-      "\\(\\dfrac{9}{2}+\\dfrac{9}{2}i\\)"
-    ],
-    correctIndex: 0,
-    explanation: "계산 결과 \\(-\\frac{9}{2} + \\frac{9}{2}i\\)."
-  },
-  {
-    question: "\\(\\sqrt{-9}\\sqrt{-25} + \\dfrac{\\sqrt{9}}{\\sqrt{-25}}\\) 을 \\(a+bi\\) 꼴로 나타내시오.",
-    choices: [
-      "\\(-15 - \\dfrac{3}{5}i\\)",
-      "\\(-15 - \\dfrac{3}{5}i\\) (중복)",
-      "\\(-15 + \\dfrac{3}{5}i\\)",
-      "\\(15 + \\dfrac{3}{5}i\\)"
-    ],
-    correctIndex: 0,
-    explanation: "중복 보기 주의. 실제 정답은 \\(-15 - \\tfrac{3}{5}i\\)."
-  },
-  {
-    question: "\\(\\sqrt{-2} + \\sqrt{-32} - \\sqrt{-8}\\) 을 \\(a+bi\\) 꼴로 나타내시오.",
-    choices: [
-      "\\(3\\sqrt{2}i\\)",
-      "\\(-3\\sqrt{2}i\\)",
-      "\\(5\\sqrt{2}i\\)",
-      "\\(-5\\sqrt{2}i\\)"
-    ],
-    correctIndex: 0,
-    explanation: "계산하면 \\(3\\sqrt{2}i\\)."
-  },
-  {
-    question: "\\(2\\sqrt{-25} - 3\\sqrt{-9} + 5\\sqrt{-36}\\) 을 \\(a+bi\\) 꼴로 나타내시오.",
-    choices: [
-      "\\(31i\\)",
-      "\\(-31i\\)",
-      "\\(1i\\)",
-      "\\(-1i\\)"
-    ],
-    correctIndex: 0,
-    explanation: "계산하면 \\(31i\\)."
-  },
-  {
-    question: "\\(\\sqrt{8}\\,\\sqrt{-2} + \\sqrt{-8}\\,\\sqrt{-2} + \\dfrac{\\sqrt{8}}{\\sqrt{-2}} + \\dfrac{\\sqrt{-8}}{\\sqrt{-2}}\\) 을 \\(a+bi\\) 꼴로 나타내시오.",
-    choices: [
-      "\\(-2 + 2i\\)",
-      "\\(-2 - 2i\\)",
-      "\\(2 + 2i\\)",
-      "\\(2 - 2i\\)"
-    ],
-    correctIndex: 0,
-    explanation: "계산 후 합하면 \\(-2 + 2i\\)."
-  },
-  {
-    question: "\\(\\dfrac{\\sqrt{32}}{\\sqrt{-2}} + \\dfrac{\\sqrt{-48}}{\\sqrt{-4}} + \\sqrt{-2}\\,\\sqrt{-6}\\) 을 \\(a+bi\\) 꼴로 나타내시오.",
-    choices: [
-      "\\(-4i\\)",
-      "\\(4i\\)",
-      "\\(-2\\sqrt{3}\\)",
-      "\\(2\\sqrt{3}\\)"
-    ],
-    correctIndex: 0,
-    explanation: "총합이 \\(-4i\\)."
-  },
-
-  // ------ 여기부터는 78~85번 ------
-
-  {
-    question: "\\(0\\)이 아닌 두 실수 \\(a,b\\)에 대하여 \\(\\sqrt{a}\\,\\sqrt{b} = -\\sqrt{ab}\\)가 성립할 때,<br/>\\(|a|-|b| + \\sqrt{(a+b)^2}\\) 를 간단히 나타내시오.",
-    choices: [
-      "0",
-      "2|a|",
-      "2|b|",
-      "-2a"
-    ],
-    correctIndex: 1,
-    explanation: "두 음수라 보면 \\(\\sqrt{(a+b)^2} = |a+b| = -(a+b).\\) 전개하면 최종 \\(2|a|\\)."
-  },
-  {
-    question: "\\(0\\)이 아닌 두 실수 \\(a,b\\)에 대하여 \\(\\sqrt{\\dfrac{a}{b}} = -\\sqrt{\\dfrac{a}{b}}\\)가 성립할 때,<br/>\\(|a-b| - |a| + |b|\\) 를 간단히 나타내시오.",
-    choices: [
-      "0",
-      "2|a|",
-      "2|b|",
-      "-2b"
-    ],
-    correctIndex: 2,
-    explanation: " \\(\\sqrt{a/b}\\)가 양수/음수 반대로 => \\(ab<0\\). 부호 맞추면 결과 \\(2|b|\\)."
-  },
-  {
-    question: "\\(0\\)이 아닌 두 실수 \\(a,b\\)에 대하여 \\(\\sqrt{\\dfrac{a}{b}} = -\\sqrt{\\dfrac{a}{b}}\\)일 때,<br/>\\(\\sqrt{a^2}\\,\\sqrt{b^2}\\)를 간단히 나타내시오.",
-    choices: [
-      "\\(ab\\)",
-      "\\(-ab\\)",
-      "\\(|a||b|\\)",
-      "\\(a^2 + b^2\\)"
-    ],
-    correctIndex: 1,
-    explanation: "\\(ab<0\\) => \\(|a||b| = -ab\\)."
-  },
-  {
-    question: "실수 \\(a,b\\)에 대하여 \\(\\sqrt{\\dfrac{a}{b}} = -\\sqrt{\\dfrac{a}{b}}\\) 일 때,<br/>\\((a-b)^2 -\\sqrt{b^2} + (\\sqrt{b})^2 + (\\sqrt{a})^2\\)를 간단히 나타내시오.",
-    choices: [
-      "\\((a-b)^2 + a - 2|b|\\)",
-      "\\(a^2 + b^2\\)",
-      "\\((a+b)^2\\)",
-      "\\(2|a-b|\\)"
-    ],
-    correctIndex: 0,
-    explanation: "세부 부호정리로 정리하면 \\((a-b)^2 + a - 2|b|\\)."
-  },
-  {
-    question: "\\(0\\neq a,b,c,d\\).<br/>\\(\\sqrt{a}\\,\\sqrt{b}=-\\sqrt{ab},\\;\\sqrt{\\dfrac{d}{c}}=-\\sqrt{\\dfrac{d}{c}}\\)가 성립할 때,<br/>\\(\\sqrt{(a+b+c)^2} - 2|a-d|\\)를 간단히 나타내시오.",
-    choices: [
-      "\\(-(a+b+c)\\)",
-      "\\(2|a-d|\\)",
-      "\\(|a+b+c| - 2|a-d|\\)",
-      "\\(|-2(a-d)|\\)"
-    ],
-    correctIndex: 2,
-    explanation: "대개 \\(a,b<0\\), \\(dc<0\\). 최종 \\(|a+b+c| - 2|a-d|\\)."
-  },
-  {
-    question: "\\(0\\neq a,b,c\\).<br/>\\(\\sqrt{a}\\,\\sqrt{b}=-\\sqrt{ab},\\;\\sqrt{\\dfrac{c}{b}}=-\\sqrt{\\dfrac{c}{b}}\\)를 동시에 만족할 때,<br/>\\(|a-b| - \\sqrt{(b-c)^2} - |a+c|\\)를 간단히 나타내시오.",
-    choices: [
-      "\\(-(|a| + |b| + |c|)\\)",
-      "\\(|a-b| - |b-c| - |a+c|\\)",
-      "\\(-2|a|\\)",
-      "0"
-    ],
-    correctIndex: 3,
-    explanation: "결과적으로 0이 됨."
-  },
-  {
-    question: "\\(0\\neq a,b,c,d\\).<br/>\\(\\sqrt{ab} = -\\sqrt{a}\\,\\sqrt{b},\\;\\sqrt{\\dfrac{c}{d}}=-\\sqrt{\\dfrac{c}{d}}\\)일 때,<br/>\\(|a| + |b| + |d| - \\sqrt{c^2} - \\sqrt{(a-c)^2}\\)를 간단히 하시오.",
-    choices: [
-      "\\(-(|a| + |b| + |c| + |d|)\\)",
-      "\\(-|a-c|\\)",
-      "\\(|b| - |a-c|\\)",
-      "0"
-    ],
-    correctIndex: 3,
-    explanation: "조건 부호를 대입해보면 대부분 항이 소거되어 0."
-  },
-  {
-    question: "\\(0\\neq a,b,c,d\\).<br/>\\(\\sqrt{\\dfrac{a}{b}}=-\\sqrt{\\dfrac{a}{b}},\\;\\sqrt{cd}=-\\sqrt{c}\\,\\sqrt{d}\\)일 때,<br/>\\(\\sqrt{a^2} + \\sqrt{b^2} - \\sqrt{(c-a)^2} - |b+d|\\)를 간단히 나타내시오.",
-    choices: [
-      "0",
-      "\\(-2|a|\\)",
-      "\\(|b+d| - |c-a|\\)",
-      "\\(-(|a|+|b|+|c|+|d|)\\)"
-    ],
-    correctIndex: 0,
-    explanation: "역시 부호관계 대입하면 0."
-  }
-
-]; // end of problems array
-
-//----------------------------------------------------
-// 난이도별 제한 시간, 문제당 점수 설정
-let timeLimitPerQuestion = 0; 
-let scorePerQuestion = 0;    
-
-// 게임 상태
-let currentProblemIndex = 0;  
-let score = 0;                
-let chances = 3;              
-let totalTime = 0;            // 전체 플레이 시간 (초)
-let problemTimer = null;      
-let energyTimer = null;       
-let energyMax = 100;          
-let energy = energyMax;       
-let gameInProgress = false;   
-let difficulty = "low";       
-let problemOrder = [];        
-
-//----------------------------------------------------
-// 간단한 shuffle 함수
-function shuffleArray(arr) {
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i+1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-}
-
-//----------------------------------------------------
-function startGame() {
-  const name = document.getElementById('playerName').value.trim();
-  if(!name) {
-    alert("이름을 입력해주세요!");
-    return;
-  }
-  const radios = document.getElementsByName('difficulty');
-  let selected = false;
-  for(let r of radios){
-    if(r.checked){
-      selected = true;
-      difficulty = r.value;
-      break;
-    }
-  }
-  if(!selected) {
-    alert("난이도를 선택해주세요!");
-    return;
-  }
-
-  // 난이도별 시간/점수 설정
-  switch(difficulty) {
-    case "top":
-      timeLimitPerQuestion = 20;
-      scorePerQuestion = 20;
-      break;
-    case "high":
-      timeLimitPerQuestion = 30;
-      scorePerQuestion = 15;
-      break;
-    case "mid":
-      timeLimitPerQuestion = 40;
-      scorePerQuestion = 13;
-      break;
-    case "low":
-    default:
-      timeLimitPerQuestion = 0; // 무제한
-      scorePerQuestion = 10;
-      break;
-  }
-
-  // 화면 전환
-  document.getElementById("setup-screen").classList.add("hidden");
-  document.getElementById("game-area").classList.remove("hidden");
-
-  // 초기화
-  score = 0;
-  chances = 3;
-  totalTime = 0;
-  currentProblemIndex = 0;
-  problemOrder = [...Array(problems.length).keys()]; // [0,1,2,...,N-1]
-  shuffleArray(problemOrder);
-  updateStatus();
-  gameInProgress = true;
+  <h1>음수의 제곱근 게임</h1>
   
-  // 전체 시간 타이머
-  setInterval(() => {
-    if(gameInProgress){
-      totalTime++;
-      document.getElementById("total-time").innerText = totalTime;
-    }
-  }, 1000);
-
-  showNextProblem();
-}
-
-//----------------------------------------------------
-function showNextProblem() {
-  if(chances <= 0) {
-    endGame();
-    return;
-  }
-  // 만약 문제를 모두 소진했다면, 다시 섞어서 무한 제공
-  if(currentProblemIndex >= problems.length) {
-    shuffleArray(problemOrder);
-    currentProblemIndex = 0;
-  }
-
-  const pIndex = problemOrder[currentProblemIndex];
-  const prob = problems[pIndex];
-
-  const container = document.getElementById("question-container");
-  container.innerHTML = `
-    <div class="question">
-      <div>${prob.question}</div>
+  <!-- 첫 화면: 이름 및 난이도 선택 -->
+  <div id="setup-screen">
+    <div>플레이어 이름을 입력하세요:</div>
+    <input type="text" id="playerName" placeholder="이름" />
+    <div class="difficulty-select">
+      <p>난이도를 선택하세요:</p>
+      <label><input type="radio" name="difficulty" value="top" /> 최상 (20초/문항, 20점/정답)</label><br/>
+      <label><input type="radio" name="difficulty" value="high" /> 상 (30초/문항, 15점/정답)</label><br/>
+      <label><input type="radio" name="difficulty" value="mid" /> 중 (40초/문항, 13점/정답)</label><br/>
+      <label><input type="radio" name="difficulty" value="low" /> 하 (시간제한 없음, 10점/정답)</label>
     </div>
-    <div class="choices" id="choice-area"></div>
-    <div class="explanation hidden" id="explanation-area"></div>
-  `;
-
-  // 보기 섞기
-  const idxArr = [0,1,2,3];
-  shuffleArray(idxArr);
-  const choiceArea = document.getElementById("choice-area");
-  idxArr.forEach((i) => {
-    const btn = document.createElement("button");
-    btn.innerHTML = prob.choices[i];
-    btn.onclick = () => checkAnswer(i, pIndex);
-    choiceArea.appendChild(btn);
-  });
-
-  // 문제당 타이머(에너지바)
-  resetEnergyBar();
-  if(timeLimitPerQuestion > 0) {
-    energyTimer = setInterval(() => {
-      energy -= (100 / timeLimitPerQuestion) / 5; 
-      if(energy < 0) {
-        energy = 0;
-        // 시간หมด => 기회 감소, 다음 문제로
-        clearInterval(energyTimer);
-        chances--;
-        updateStatus();
-        alert("시간이 초과되었습니다. 기회를 1 잃습니다.");
-        showCorrectAnswer(pIndex);
-        setTimeout(() => {
-          showNextProblem();
-        }, 1500);
-      }
-      updateEnergyBar();
-    }, 200); // 0.2초마다 차감(1초=5번)
-  }
-
-  // 수식 렌더링
-  MathJax.typeset();
-}
-
-//----------------------------------------------------
-function resetEnergyBar() {
-  energy = energyMax;
-  updateEnergyBar();
-  if(energyTimer) clearInterval(energyTimer);
-}
-
-function updateEnergyBar() {
-  const fill = document.getElementById("energy-fill");
-  fill.style.width = (energy/energyMax*100) + "%";
-}
-
-//----------------------------------------------------
-function checkAnswer(choiceIndex, realIndex) {
-  if(!gameInProgress) return;
-
-  // 시간타이머 정지
-  if(energyTimer) {
-    clearInterval(energyTimer);
-    energyTimer = null;
-  }
-
-  const prob = problems[realIndex];
-  const correct = (choiceIndex === prob.correctIndex);
-
-  if(correct) {
-    score += scorePerQuestion;
-    alert("정답입니다!");
-  } else {
-    chances--;
-    alert("틀렸습니다! 정답: "+prob.choices[prob.correctIndex]);
-  }
-
-  showCorrectAnswer(realIndex);
-  updateStatus();
-
-  if(chances <= 0) {
-    endGame();
-    return;
-  }
-
-  // 문제 끝나면 잠시 후 다음 문제
-  setTimeout(() => {
-    currentProblemIndex++;
-    showNextProblem();
-  }, 1500);
-}
-
-function showCorrectAnswer(realIndex) {
-  const prob = problems[realIndex];
-  const expDiv = document.getElementById("explanation-area");
-  if(expDiv) {
-    expDiv.innerHTML = "해설: " + prob.explanation;
-    expDiv.classList.remove("hidden");
-  }
-  MathJax.typeset();
-}
-
-//----------------------------------------------------
-function updateStatus() {
-  document.getElementById("score").innerText = score;
-  document.getElementById("chances").innerText = chances;
-}
-
-//----------------------------------------------------
-function endGame() {
-  gameInProgress = false;
-  document.getElementById("game-area").classList.add("hidden");
-  document.getElementById("end-screen").classList.remove("hidden");
-  document.getElementById("final-score").innerText = score;
-}
-
-//----------------------------------------------------
-// 점수 전송 로직
-function sendScore(){
-  const name = document.getElementById('playerName').value.trim();
-  const elapsedTime = totalTime;
-
-  // 서버에 전송
-  saveData("음수의 제곱근", name, score, elapsedTime);
-}
-
-//----------------------------------------------------
-// 문제에서 주신 함수 (서버로 전송)
-async function saveData(game, name, score, elapsedTime) {
-  const FUNCTION_URL = "https://us-central1-record-f420d.cloudfunctions.net/report";
-  const requestData = {
-    game,
-    name,
-    score: parseInt(score, 10),
-    elapsedTime: parseInt(elapsedTime, 10)
-  };
-
-  try {
-    const response = await fetch(FUNCTION_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
+    <button onclick="startGame()">게임 시작</button>
+  </div>
+  
+  <!-- 게임 진행 영역 -->
+  <div id="game-area" class="hidden">
+    <div class="status">
+      <div>전체 플레이 시간: <span id="total-time">0</span>초</div>
+      <div>남은 기회: <span id="chances">3</span></div>
+      <div>점수: <span id="score">0</span></div>
+    </div>
+    <div class="energy-bar" id="energy-bar">
+      <div class="energy-fill" id="energy-fill"></div>
+    </div>
+    <div id="question-container"></div>
+    <!-- 정답/오답 확인 후에만 나타나는 다음문제 버튼 -->
+    <button id="next-button" class="hidden" onclick="nextQuestion()">다음문제</button>
+  </div>
+  
+  <!-- 종료 화면 -->
+  <div id="end-screen" class="hidden">
+    <h2>게임 종료</h2>
+    <p>최종 점수: <span id="final-score">0</span></p>
+    <button class="score-button" onclick="sendScore()">점수전송</button>
+    <div id="response"></div>
+  </div>
+  
+  <script>
+    /* --- 문제 배열 --- */
+    const problems = [
+      {
+        question: "다음 식 \\(\\sqrt{-2}\\,\\sqrt{-8}\\) 을 \\(a+bi\\,(a,b\\in \\mathbb{R}, i=\\sqrt{-1})\\) 꼴로 나타내시오.<br/>\\(\\sqrt{-2}=\\sqrt{2}i,\\; \\sqrt{-8}=2\\sqrt{2}i\\)",
+        choices: [
+          "\\(-4\\)",
+          "\\(4\\)",
+          "\\(-4i\\)",
+          "\\(4i\\)"
+        ],
+        correctIndex: 0,
+        explanation: "계산하면 \\(\\sqrt{2}i \\times 2\\sqrt{2}i = 4i^2 = -4\\)."
       },
-      body: JSON.stringify(requestData)
-    });
-
-    const responseData = await response.json();
-
-    if (response.ok) {
-      document.getElementById('response').innerText =
-        "성공: " + JSON.stringify(responseData, null, 2);
-    } else {
-      document.getElementById('response').innerText =
-        "오류: " + JSON.stringify(responseData, null, 2);
+      {
+        question: "다음 식 \\(\\sqrt{3}\\,\\sqrt{-27}\\) 을 \\(a+bi\\) 꼴로 나타내시오.",
+        choices: [
+          "\\(9\\)",
+          "\\(-9\\)",
+          "\\(9i\\)",
+          "\\(-9i\\)"
+        ],
+        correctIndex: 2,
+        explanation: "\\(\\sqrt{-27}=3\\sqrt{3}i\\) 이므로, \\(\\sqrt{3}\\times3\\sqrt{3}i=9i\\)."
+      },
+      {
+        question: "다음 식 \\(\\sqrt{-2}\\,\\sqrt{8}\\) 을 \\(a+bi\\) 꼴로 나타내시오.",
+        choices: [
+          "\\(4i\\)",
+          "\\(-4\\)",
+          "\\(2i\\)",
+          "\\(-4i\\)"
+        ],
+        correctIndex: 0,
+        explanation: "\\(\\sqrt{-2}=\\sqrt{2}i,\\; \\sqrt{8}=2\\sqrt{2}\\) 이므로, 곱하면 \\(4i\\)."
+      },
+      {
+        question: "다음 식 \\(\\sqrt{-2}\\,\\sqrt{-3}\\) 을 \\(a+bi\\) 꼴로 나타내시오.",
+        choices: [
+          "\\(\\sqrt{6}\\)",
+          "\\(-\\sqrt{6}\\)",
+          "\\(\\sqrt{6}i\\)",
+          "\\(-\\sqrt{6}i\\)"
+        ],
+        correctIndex: 1,
+        explanation: "\\(\\sqrt{-2}\\,\\sqrt{-3}=\\sqrt{2}i\\times\\sqrt{3}i=\\sqrt{6}i^2=-\\sqrt{6}\\)."
+      },
+      {
+        question: "다음 식 \\(\\sqrt{-2}\\,\\sqrt{3}\\) 을 \\(a+bi\\) 꼴로 나타내시오.",
+        choices: [
+          "\\(\\sqrt{6}\\)",
+          "\\(-\\sqrt{6}i\\)",
+          "\\(\\sqrt{6}i\\)",
+          "\\(-\\sqrt{6}\\)"
+        ],
+        correctIndex: 2,
+        explanation: "\\(\\sqrt{-2}=\\sqrt{2}i\\) 이므로, \\(\\sqrt{2}i\\times\\sqrt{3}=\\sqrt{6}i\\)."
+      },
+      {
+        question: "다음 식 \\(\\sqrt{-4}\\,\\sqrt{-6}\\) 을 \\(a+bi\\) 꼴로 나타내시오.",
+        choices: [
+          "\\(2\\sqrt{6}i\\)",
+          "\\(-2\\sqrt{6}i\\)",
+          "\\(2\\sqrt{6}\\)",
+          "\\(-2\\sqrt{6}\\)"
+        ],
+        correctIndex: 3,
+        explanation: "\\(\\sqrt{-4}=2i,\\; \\sqrt{-6}=\\sqrt{6}i\\) 이므로, \\(2i\\times\\sqrt{6}i=-2\\sqrt{6}\\)."
+      },
+      {
+        question: "다음 식 \\(\\sqrt{-5}\\,\\sqrt{-3}\\) 을 \\(a+bi\\) 꼴로 나타내시오.",
+        choices: [
+          "\\(\\sqrt{15}\\)",
+          "\\(-\\sqrt{15}\\)",
+          "\\(\\sqrt{15}i\\)",
+          "\\(-\\sqrt{15}i\\)"
+        ],
+        correctIndex: 1,
+        explanation: "\\(\\sqrt{-5}=\\sqrt{5}i,\\; \\sqrt{-3}=\\sqrt{3}i\\) 이므로, 곱하면 \\(-\\sqrt{15}\\)."
+      },
+      {
+        question: "다음 식 \\(\\sqrt{-8}\\,\\sqrt{-9}\\) 을 \\(a+bi\\) 꼴로 나타내시오.",
+        choices: [
+          "\\(-6\\sqrt{2}\\)",
+          "\\(6\\sqrt{2}\\)",
+          "\\(-6\\sqrt{2}i\\)",
+          "\\(6\\sqrt{2}i\\)"
+        ],
+        correctIndex: 0,
+        explanation: "\\(\\sqrt{-8}=2\\sqrt{2}i,\\; \\sqrt{-9}=3i\\) 이므로, \\(2\\sqrt{2}i\\times3i=-6\\sqrt{2}\\)."
+      },
+      {
+        question: "\\(\\dfrac{\\sqrt{16}}{\\sqrt{-4}}\\) 을 \\(a+bi\\) 꼴로 나타내시오.",
+        choices: [
+          "\\(2\\)",
+          "\\(-2\\)",
+          "\\(2i\\)",
+          "\\(-2i\\)"
+        ],
+        correctIndex: 3,
+        explanation: "\\(\\sqrt{16}=4,\\; \\sqrt{-4}=2i\\) 이므로, \\(4/(2i)=-2i\\)."
+      },
+      {
+        question: "\\(\\dfrac{\\sqrt{-30}}{\\sqrt{-6}}\\) 을 \\(a+bi\\) 꼴로 나타내시오.",
+        choices: [
+          "\\(\\sqrt{5}\\)",
+          "\\(-\\sqrt{5}\\)",
+          "\\(\\sqrt{5}i\\)",
+          "\\(-\\sqrt{5}i\\)"
+        ],
+        correctIndex: 0,
+        explanation: "\\(\\sqrt{-30}=\\sqrt{30}i,\\; \\sqrt{-6}=\\sqrt{6}i\\) 이므로, \\(\\sqrt{30}/\\sqrt{6}=\\sqrt{5}\\)."
+      },
+      {
+        question: "\\(\\dfrac{\\sqrt{-6}}{\\sqrt{2}}\\) 을 \\(a+bi\\) 꼴로 나타내시오.",
+        choices: [
+          "\\(\\sqrt{3}\\)",
+          "\\(-\\sqrt{3}\\)",
+          "\\(\\sqrt{3}i\\)",
+          "\\(-\\sqrt{3}i\\)"
+        ],
+        correctIndex: 2,
+        explanation: "\\(\\sqrt{-6}=\\sqrt{6}i\\) 이므로, \\(\\sqrt{6}i/\\sqrt{2}=\\sqrt{3}i\\)."
+      },
+      {
+        question: "\\(\\dfrac{\\sqrt{-5}}{\\sqrt{-4}}\\) 을 \\(a+bi\\) 꼴로 나타내시오.",
+        choices: [
+          "\\(\\dfrac{\\sqrt{5}}{2}i\\)",
+          "\\(-\\dfrac{\\sqrt{5}}{2}i\\)",
+          "\\(\\dfrac{\\sqrt{5}}{4}\\)",
+          "\\(-\\dfrac{\\sqrt{5}}{4}\\)"
+        ],
+        correctIndex: 1,
+        explanation: "\\(\\sqrt{-5}=\\sqrt{5}i,\\; \\sqrt{-4}=2i\\) 이므로, \\(\\dfrac{\\sqrt{5}i}{2i}=-\\dfrac{\\sqrt{5}}{2}i\\)."
+      },
+      {
+        question: "\\(\\dfrac{\\sqrt{-12}}{\\sqrt{-3}}\\) 을 \\(a+bi\\) 꼴로 나타내시오.",
+        choices: [
+          "2",
+          "-2",
+          "2i",
+          "-2i"
+        ],
+        correctIndex: 0,
+        explanation: "\\(\\sqrt{-12}=2\\sqrt{3}i,\\; \\sqrt{-3}=\\sqrt{3}i\\) 이므로, \\(2\\sqrt{3}i/\\sqrt{3}i=2\\)."
+      },
+      {
+        question: "\\(\\dfrac{\\sqrt{8}}{\\sqrt{-2}}\\) 을 \\(a+bi\\) 꼴로 나타내시오.",
+        choices: [
+          "2i",
+          "-2i",
+          "2",
+          "-2"
+        ],
+        correctIndex: 1,
+        explanation: "\\(\\sqrt{8}=2\\sqrt{2},\\; \\sqrt{-2}=\\sqrt{2}i\\) 이므로, \\(2\\sqrt{2}/(\\sqrt{2}i)=-2i\\)."
+      },
+      {
+        question: "\\(\\dfrac{\\sqrt{-10}}{\\sqrt{2}}\\) 을 \\(a+bi\\) 꼴로 나타내시오.",
+        choices: [
+          "\\(\\sqrt{5}i\\)",
+          "\\(-\\sqrt{5}i\\)",
+          "\\(\\sqrt{10}i\\)",
+          "\\(-\\sqrt{10}i\\)"
+        ],
+        correctIndex: 0,
+        explanation: "\\(\\sqrt{-10}=\\sqrt{10}i\\) 이므로, \\(\\sqrt{10}i/\\sqrt{2}=\\sqrt{5}i\\)."
+      },
+      {
+        question: "\\(\\dfrac{\\sqrt{18}}{\\sqrt{-3}}\\) 을 \\(a+bi\\) 꼴로 나타내시오.",
+        choices: [
+          "\\(\\sqrt{6}i\\)",
+          "\\(-\\sqrt{6}i\\)",
+          "\\(\\sqrt{6}\\)",
+          "\\(-\\sqrt{6}\\)"
+        ],
+        correctIndex: 1,
+        explanation: "\\(\\sqrt{18}=3\\sqrt{2},\\; \\sqrt{-3}=\\sqrt{3}i\\) 이므로, \\(3\\sqrt{2}/\\sqrt{3}i=-\\sqrt{6}i\\)."
+      },
+      {
+        question: "\\(\\dfrac{\\sqrt{-8}}{\\sqrt{-2}}\\) 을 \\(a+bi\\) 꼴로 나타내시오.",
+        choices: [
+          "2",
+          "-2",
+          "2i",
+          "-2i"
+        ],
+        correctIndex: 0,
+        explanation: "\\(\\sqrt{-8}=2\\sqrt{2}i,\\; \\sqrt{-2}=\\sqrt{2}i\\) 이므로, 결과는 2."
+      },
+      {
+        question: "\\(\\dfrac{2 - 2\\sqrt{-1}}{1 + \\sqrt{-1}}\\) 을 \\(a+bi\\) 꼴로 나타내시오.",
+        choices: [
+          "\\(-2\\)",
+          "\\(2\\)",
+          "\\(-2i\\)",
+          "\\(2i\\)"
+        ],
+        correctIndex: 2,
+        explanation: "계산하면, \\(\\frac{2-2i}{1+i}=-2i\\)로 나타난다."
+      },
+      {
+        question: "\\(2\\sqrt{-8} - \\sqrt{-18} + 2\\sqrt{-50}\\) 를 \\(a+bi\\) 꼴로 나타내시오.",
+        choices: [
+          "\\(11\\sqrt{2}i\\)",
+          "\\(-11\\sqrt{2}i\\)",
+          "\\(11\\sqrt{3}i\\)",
+          "\\(-11\\sqrt{3}i\\)"
+        ],
+        correctIndex: 0,
+        explanation: "계산하면, 결과는 \\(11\\sqrt{2}i\\)."
+      },
+      {
+        question: "\\(\\sqrt{-12}-\\sqrt{-8}-\\sqrt{-2}+\\dfrac{\\sqrt{15}}{\\sqrt{-5}}\\) 을 \\(a+bi\\) 꼴로 나타내시오.",
+        choices: [
+          "\\(\\sqrt{3}i - 3\\sqrt{2}i\\)",
+          "\\(\\sqrt{3}i + 3\\sqrt{2}i\\)",
+          "\\(-\\sqrt{3}i - 3\\sqrt{2}i\\)",
+          "\\(-\\sqrt{3}i + 3\\sqrt{2}i\\)"
+        ],
+        correctIndex: 0,
+        explanation: "계산하면, 각 항을 정리하여 \\(\\sqrt{3}i - 3\\sqrt{2}i\\)가 된다."
+      },
+      {
+        question: "\\(3\\sqrt{-12}-\\sqrt{-48}-6\\sqrt{-3}\\) 을 \\(a+bi\\) 꼴로 나타내시오.",
+        choices: [
+          "\\(-4\\sqrt{3}i\\)",
+          "\\(4\\sqrt{3}i\\)",
+          "\\(-10\\sqrt{3}i\\)",
+          "\\(10\\sqrt{3}i\\)"
+        ],
+        correctIndex: 0,
+        explanation: "계산하면, 결과는 \\(-4\\sqrt{3}i\\)."
+      },
+      {
+        question: "\\(\\sqrt{4}\\,\\sqrt{-9} + \\sqrt{-4}\\,\\sqrt{-9} + \\dfrac{\\sqrt{9}}{\\sqrt{-4}} + \\dfrac{\\sqrt{-9}}{\\sqrt{-4}}\\) 을 \\(a+bi\\) 꼴로 나타내시오.",
+        choices: [
+          "\\(-\\dfrac{9}{2}+\\dfrac{9}{2}i\\)",
+          "\\(\\dfrac{9}{2}-\\dfrac{9}{2}i\\)",
+          "\\(-\\dfrac{9}{2}-\\dfrac{9}{2}i\\)",
+          "\\(\\dfrac{9}{2}+\\dfrac{9}{2}i\\)"
+        ],
+        correctIndex: 0,
+        explanation: "계산하면, 결과는 \\(-\\frac{9}{2} + \\frac{9}{2}i\\)."
+      },
+      {
+        question: "\\(\\sqrt{-9}\\,\\sqrt{-25} + \\dfrac{\\sqrt{9}}{\\sqrt{-25}}\\) 을 \\(a+bi\\) 꼴로 나타내시오.",
+        choices: [
+          "\\(-15 - \\dfrac{3}{5}i\\)",
+          "\\(-15 - \\dfrac{3}{5}i\\) (중복)",
+          "\\(-15 + \\dfrac{3}{5}i\\)",
+          "\\(15 + \\dfrac{3}{5}i\\)"
+        ],
+        correctIndex: 0,
+        explanation: "계산하면, 결과는 \\(-15 - \\frac{3}{5}i\\)."
+      },
+      {
+        question: "\\(\\sqrt{-2} + \\sqrt{-32} - \\sqrt{-8}\\) 을 \\(a+bi\\) 꼴로 나타내시오.",
+        choices: [
+          "\\(3\\sqrt{2}i\\)",
+          "\\(-3\\sqrt{2}i\\)",
+          "\\(5\\sqrt{2}i\\)",
+          "\\(-5\\sqrt{2}i\\)"
+        ],
+        correctIndex: 0,
+        explanation: "계산하면, 결과는 \\(3\\sqrt{2}i\\)."
+      },
+      {
+        question: "\\(2\\sqrt{-25} - 3\\sqrt{-9} + 5\\sqrt{-36}\\) 을 \\(a+bi\\) 꼴로 나타내시오.",
+        choices: [
+          "\\(31i\\)",
+          "\\(-31i\\)",
+          "\\(1i\\)",
+          "\\(-1i\\)"
+        ],
+        correctIndex: 0,
+        explanation: "계산하면, 결과는 \\(31i\\)."
+      },
+      {
+        question: "\\(\\sqrt{8}\\,\\sqrt{-2} + \\sqrt{-8}\\,\\sqrt{-2} + \\dfrac{\\sqrt{8}}{\\sqrt{-2}} + \\dfrac{\\sqrt{-8}}{\\sqrt{-2}}\\) 을 \\(a+bi\\) 꼴로 나타내시오.",
+        choices: [
+          "\\(-2 + 2i\\)",
+          "\\(-2 - 2i\\)",
+          "\\(2 + 2i\\)",
+          "\\(2 - 2i\\)"
+        ],
+        correctIndex: 0,
+        explanation: "계산하면, 결과는 \\(-2 + 2i\\)."
+      },
+      {
+        question: "\\(\\dfrac{\\sqrt{32}}{\\sqrt{-2}} + \\dfrac{\\sqrt{-48}}{\\sqrt{-4}} + \\sqrt{-2}\\,\\sqrt{-6}\\) 을 \\(a+bi\\) 꼴로 나타내시오.",
+        choices: [
+          "\\(-4i\\)",
+          "\\(4i\\)",
+          "\\(-2\\sqrt{3}\\)",
+          "\\(2\\sqrt{3}\\)"
+        ],
+        correctIndex: 0,
+        explanation: "계산하면, 결과는 \\(-4i\\)."
+      }
+    ];
+    
+    /* --- 게임 상태 변수 --- */
+    let timeLimitPerQuestion = 0; 
+    let scorePerQuestion = 0;    
+    let currentProblemIndex = 0;  
+    let score = 0;                
+    let chances = 3;              
+    let totalTime = 0;            
+    let problemTimer = null;      
+    let energyTimer = null;       
+    let energyMax = 100;          
+    let energy = energyMax;       
+    let gameInProgress = false;   
+    let difficulty = "low";       
+    let problemOrder = [];
+    
+    /* --- 배열 섞기 함수 --- */
+    function shuffleArray(arr) {
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
     }
-  } catch (error) {
-    console.error('요청 실패:', error);
-    document.getElementById('response').innerText =
-      "네트워크 오류: " + error.message;
-  }
-}
-</script>
+    
+    /* --- 게임 시작 --- */
+    function startGame() {
+      const name = document.getElementById('playerName').value.trim();
+      if (!name) {
+        alert("이름을 입력해주세요!");
+        return;
+      }
+      const radios = document.getElementsByName('difficulty');
+      let selected = false;
+      for (let r of radios) {
+        if (r.checked) {
+          selected = true;
+          difficulty = r.value;
+          break;
+        }
+      }
+      if (!selected) {
+        alert("난이도를 선택해주세요!");
+        return;
+      }
+      
+      // 난이도에 따른 시간 및 점수 설정
+      switch(difficulty) {
+        case "top":
+          timeLimitPerQuestion = 20;
+          scorePerQuestion = 20;
+          break;
+        case "high":
+          timeLimitPerQuestion = 30;
+          scorePerQuestion = 15;
+          break;
+        case "mid":
+          timeLimitPerQuestion = 40;
+          scorePerQuestion = 13;
+          break;
+        case "low":
+        default:
+          timeLimitPerQuestion = 0; // 무제한
+          scorePerQuestion = 10;
+          break;
+      }
+      
+      document.getElementById("setup-screen").classList.add("hidden");
+      document.getElementById("game-area").classList.remove("hidden");
+      
+      score = 0;
+      chances = 3;
+      totalTime = 0;
+      currentProblemIndex = 0;
+      problemOrder = [...Array(problems.length).keys()];
+      shuffleArray(problemOrder);
+      updateStatus();
+      gameInProgress = true;
+      
+      // 전체 플레이 시간 타이머
+      setInterval(() => {
+        if (gameInProgress) {
+          totalTime++;
+          document.getElementById("total-time").innerText = totalTime;
+        }
+      }, 1000);
+      
+      showNextProblem();
+    }
+    
+    /* --- 문제 보여주기 --- */
+    function showNextProblem() {
+      // 다음문제 버튼 숨김
+      document.getElementById("next-button").classList.add("hidden");
+      // 이전 해설 내용 삭제
+      const container = document.getElementById("question-container");
+      container.innerHTML = "";
+      
+      if (chances <= 0) {
+        endGame();
+        return;
+      }
+      
+      if (currentProblemIndex >= problems.length) {
+        shuffleArray(problemOrder);
+        currentProblemIndex = 0;
+      }
+      
+      const pIndex = problemOrder[currentProblemIndex];
+      const prob = problems[pIndex];
+      
+      container.innerHTML = `
+        <div class="question">
+          <div>${prob.question}</div>
+        </div>
+        <div class="choices" id="choice-area"></div>
+        <div class="explanation hidden" id="explanation-area"></div>
+      `;
+      
+      // 보기 섞어서 출력
+      const idxArr = [0, 1, 2, 3];
+      shuffleArray(idxArr);
+      const choiceArea = document.getElementById("choice-area");
+      idxArr.forEach((i) => {
+        const btn = document.createElement("button");
+        btn.innerHTML = prob.choices[i];
+        btn.onclick = () => checkAnswer(i, pIndex);
+        choiceArea.appendChild(btn);
+      });
+      
+      resetEnergyBar();
+      if (timeLimitPerQuestion > 0) {
+        energyTimer = setInterval(() => {
+          energy -= (100 / timeLimitPerQuestion) / 5;
+          if (energy < 0) {
+            energy = 0;
+            clearInterval(energyTimer);
+            chances--;
+            updateStatus();
+            alert("시간이 초과되었습니다. 기회를 1 잃습니다.");
+            showCorrectAnswer(pIndex);
+            enableNextButton();
+          }
+          updateEnergyBar();
+        }, 200);
+      }
+      
+      MathJax.typeset();
+    }
+    
+    /* --- 에너지바 관련 --- */
+    function resetEnergyBar() {
+      energy = energyMax;
+      updateEnergyBar();
+      if (energyTimer) clearInterval(energyTimer);
+    }
+    
+    function updateEnergyBar() {
+      const fill = document.getElementById("energy-fill");
+      fill.style.width = (energy / energyMax * 100) + "%";
+    }
+    
+    /* --- 정답 확인 --- */
+    function checkAnswer(choiceIndex, realIndex) {
+      if (!gameInProgress) return;
+      
+      if (energyTimer) {
+        clearInterval(energyTimer);
+        energyTimer = null;
+      }
+      
+      const prob = problems[realIndex];
+      const correct = (choiceIndex === prob.correctIndex);
+      
+      if (correct) {
+        score += scorePerQuestion;
+        alert("정답입니다!");
+      } else {
+        chances--;
+        alert("틀렸습니다! 정답: " + prob.choices[prob.correctIndex]);
+      }
+      
+      updateStatus();
+      showCorrectAnswer(realIndex);
+      enableNextButton();
+    }
+    
+    function showCorrectAnswer(realIndex) {
+      const prob = problems[realIndex];
+      const expDiv = document.getElementById("explanation-area");
+      if (expDiv) {
+        expDiv.innerHTML = "해설: " + prob.explanation;
+        expDiv.classList.remove("hidden");
+      }
+      MathJax.typeset();
+    }
+    
+    function updateStatus() {
+      document.getElementById("score").innerText = score;
+      document.getElementById("chances").innerText = chances;
+    }
+    
+    /* --- 다음문제 버튼 활성화 --- */
+    function enableNextButton() {
+      document.getElementById("next-button").classList.remove("hidden");
+    }
+    
+    function nextQuestion() {
+      if (chances <= 0) {
+        endGame();
+        return;
+      }
+      currentProblemIndex++;
+      showNextProblem();
+    }
+    
+    function endGame() {
+      gameInProgress = false;
+      document.getElementById("game-area").classList.add("hidden");
+      document.getElementById("end-screen").classList.remove("hidden");
+      document.getElementById("final-score").innerText = score;
+    }
+    
+    /* --- 점수 전송 --- */
+    function sendScore(){
+      const name = document.getElementById('playerName').value.trim();
+      const elapsedTime = totalTime;
+      saveData("음수의 제곱근", name, score, elapsedTime);
+    }
+    
+    async function saveData(game, name, score, elapsedTime) {
+      const FUNCTION_URL = "https://us-central1-record-f420d.cloudfunctions.net/report";
+      const requestData = {
+        game,
+        name,
+        score: parseInt(score, 10),
+        elapsedTime: parseInt(elapsedTime, 10)
+      };
+      
+      try {
+        const response = await fetch(FUNCTION_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(requestData)
+        });
+        
+        const responseData = await response.json();
+        
+        if (response.ok) {
+          document.getElementById('response').innerText =
+            "성공: " + JSON.stringify(responseData, null, 2);
+        } else {
+          document.getElementById('response').innerText =
+            "오류: " + JSON.stringify(responseData, null, 2);
+        }
+      } catch (error) {
+        console.error('요청 실패:', error);
+        document.getElementById('response').innerText =
+          "네트워크 오류: " + error.message;
+      }
+    }
+  </script>
 </body>
 </html>
